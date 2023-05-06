@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sysctl-client
+  namespace: kube-system
+  labels:
+    app: sysctl-client
+spec:
+  selector:
+    matchLabels:
+      name: sysctl-client
+  template:
+    metadata:
+      labels:
+        name: sysctl-client
+    spec:
+      hostNetwork: true
+      containers:
+      - name: ubuntu
+        securityContext:
+          privileged: true
+        image: ubuntu:bionic
+        args:
+        - /bin/bash
+        - "-c"
+        - |
+          chroot /host /bin/bash -u <<'EOF'
+          sysctl -w net.netfilter.nf_conntrack_max=1048576
+          sysctl -w net.netfilter.nf_conntrack_tcp_timeout_established=1800
+          sleep infinity
+          EOF
+        volumeMounts:
+          - name: host
+            mountPath: /host
+          - name: docker
+            mountPath: /var/run/docker.sock
+      priorityClassName: system-cluster-critical
+      volumes:
+        - name: host
+          hostPath:
+            path: /
+        - name: docker
+          hostPath:
+            path: /var/run/dockershim.sock
+            type: Socket
